@@ -1,20 +1,27 @@
 # users/george/home.nix
 { config, lib, pkgs, ... }:
-let
-  georgeCrownShySignKeyId = "1336EFE416D0D0CF919FF650AFEE9B60134C05E9";
-  georgeCrownShyAuthKeygrip= "41D34B4B72809D3A88C301FF891CB4E9EFF19F15";
-in
 {
 
   # Required Home Manager state version
-  home.stateVersion = "26.05";
+  home.stateVersion = "unstable";
 
   programs.ssh = {
     enable = true;
     enableDefaultConfig = false;
     
-    settings."*" = {
-      KexAlgorithms = "sntrup761x25519-sha512@openssh.com,curve25519-sha256";
+    settings = {
+		  "*" = {
+        KexAlgorithms = "sntrup761x25519-sha512@openssh.com,curve25519-sha256";
+      };
+
+			"github-hobby" = {
+        hostname = "github.com";
+        user = "git";
+        identityFile = "~/.ssh/id_ed25519_hobby";
+        extraOptions = {
+          IdentitiesOnly = "yes";
+        };
+      };
     };
   };
 
@@ -32,122 +39,11 @@ in
       ];
       tag.gpgsign = true;
       user = {
-        email = "george@crown-shy.com";
+        email = "georgehulme2@gmail.com";
         name = "George Hulme";
-        signingKey = georgeCrownShySignKeyId;
+        # signingKey = <signing-key-id>;
       };
     };
-  };
-
-  programs.nixvim = {
-    enable = true;
-    defaultEditor = true;
-    nixpkgs.useGlobalPackages = true;
-
-    extraPackages = with pkgs; [
-      lldb
-    ];
-
-    plugins = {
-      oil.enable = true;
-      dap.enable = true;
-      dap-ui.enable = true;
-      dap-virtual-text.enable = true;
-      rustaceanvim.enable = true;
-    };
-
-    keymaps = [
-      {
-        mode = "n";
-        key = "<F5>";
-        action = "<cmd>lua require('dap').continue()<CR>";
-        options.desc = "Debug: Start/Continue";
-      }
-      {
-        mode = "n";
-        key = "<F10>";
-        action = "<cmd>lua require('dap').step_over()<CR>";
-        options.desc = "Debug: Step Over";
-      }
-      {
-        mode = "n";
-        key = "<F11>";
-        action = "<cmd>lua require('dap').step_into()<CR>";
-        options.desc = "Debug: Step Into";
-      }
-      {
-        mode = "n";
-        key = "<F12>";
-        action = "<cmd>lua require('dap').step_out()<CR>";
-        options.desc = "Debug: Step Out";
-      }
-      {
-        mode = "n";
-        key = "<Leader>b";
-        action = "<cmd>lua require('dap').toggle_breakpoint()<CR>";
-        options.desc = "Debug: Toggle Breakpoint";
-      }
-      {
-        mode = "n";
-        key = "<Leader>B";
-        action = "<cmd>lua require('dap').set_breakpoint(vim.fn.input('Breakpoint condition: '))<CR>";
-        options.desc = "Debug: Conditional Breakpoint";
-      }
-      {
-        mode = "n";
-        key = "<Leader>dr";
-        action = "<cmd>lua require('dap').repl.open()<CR>";
-        options.desc = "Debug: Open REPL";
-      }
-      {
-        mode = "n";
-        key = "<Leader>dl";
-        action = "<cmd>lua require('dap').run_last()<CR>";
-        options.desc = "Debug: Run Last";
-      }
-    ];
-
-    extraConfigLua = ''
-      local dap = require("dap")
-      local dapui = require("dapui")
-
-      dapui.setup()
-
-      dap.listeners.after.event_initialized["dapui_config"] = function()
-        dapui.open()
-      end
-      dap.listeners.before.event_terminated["dapui_config"] = function()
-        dapui.close()
-      end
-      dap.listeners.before.event_exited["dapui_config"] = function()
-        dapui.close()
-      end
-
-      dap.adapters.codelldb = {
-        type = "server",
-        port = "''${port}",
-        executable = {
-          command = "${pkgs.lldb}/bin/lldb-vscode",
-          args = { "--port", "''${port}" },
-        },
-      }
-
-      dap.configurations.rust = {
-        {
-          name = "Launch executable",
-          type = "codelldb",
-          request = "launch",
-          program = function()
-            return vim.fn.input("Path to executable: ", vim.fn.getcwd() .. "/target/debug/", "file")
-          end,
-          cwd = "''${workspaceFolder}",
-          stopOnEntry = false,
-        },
-      }
-    '';
-
-    lsp.servers.nil_ls.enable = true;
-    lsp.servers.rust_analyzer.enable = true;
   };
 
   services.gpg-agent = {
@@ -162,7 +58,7 @@ in
     activation = {
       importGpgKey = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
         GPG="${pkgs.gnupg}/bin/gpg"
-        KEY_ID="${georgeCrownShySignKeyId}"
+        # KEY_ID="${<signing-key-id>}"
 
         # Fetch key if not present in user keyring
         if ! $GPG --list-keys "$KEY_ID" >/dev/null 2>&1; then
@@ -189,9 +85,9 @@ in
         rustflags = ["-C", "link-arg=-fuse-ld=/usr/bin/mold"]
       '';
 
-      ".gnupg/sshcontrol".text = ''
-        ${georgeCrownShyAuthKeygrip}
-      '';
+      # ".gnupg/sshcontrol".text = ''
+      #   ${auth-key-keygrip}
+      # '';
 
       ".profile".text = ''
         # Setup direnv
@@ -199,7 +95,7 @@ in
         eval "$(direnv hook bash)"
 
         ## Setup SSH auth via OpenPGP
-	export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
+        export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
 
         ## Set direnv timeout warning to 2 minutes (default=20s)
         export DIRENV_WARN_TIMEOUT=2m

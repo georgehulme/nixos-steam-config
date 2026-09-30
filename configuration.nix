@@ -62,5 +62,5 @@
   ];
 
   # Compatibility state version (Do not change unless upgrading across major releases)
-  system.stateVersion = "26.05";
+  system.stateVersion = "unstable";
 }
